@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>球場巡礼ログ</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f2044">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="球場巡礼">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#0f2044;
+  --navy-mid:#1a3460;
+  --navy-light:#243d6e;
+  --accent:#e8a020;
+  --accent-light:#f5c060;
+  --green:#1a7a3c;
+  --green-light:#e8f5ee;
+  --bg:#f4f2ed;
+  --card-bg:#ffffff;
+  --text:#1a1a18;
+  --text2:#4a4a47;
+  --text3:#888780;
+  --border:rgba(0,0,0,0.12);
+  --border2:rgba(0,0,0,0.22);
+  --radius:10px;
+  --radius-lg:14px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#0d1220;
+    --card-bg:#151d30;
+    --text:#eceae3;
+    --text2:#a8a6a0;
+    --text3:#666460;
+    --border:rgba(255,255,255,0.1);
+    --border2:rgba(255,255,255,0.2);
+    --green-light:#0d2a1a;
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI',sans-serif;background:var(--bg);min-height:100vh;color:var(--text);padding-bottom:env(safe-area-inset-bottom)}
+
+/* ── iOS safe area ── */
+.site-header{padding-top:calc(1.5rem + env(safe-area-inset-top))}
+.tab-bar{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
+
+/* ── INSTALL BANNER ── */
+.install-banner{display:none;align-items:center;justify-content:space-between;gap:12px;background:var(--accent);color:var(--navy);padding:10px 16px;font-size:13px;font-weight:600}
+.install-banner.show{display:flex}
+.install-banner button{background:var(--navy);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
+.install-banner .close-btn{background:transparent;color:var(--navy);padding:4px 8px;opacity:0.6;font-size:16px}
+
+/* ── HEADER ── */
+.site-header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 60%,var(--navy-light) 100%);padding:1.5rem 1.25rem 1.25rem;position:relative;overflow:hidden}
+.site-header::before{content:'⚾';position:absolute;right:-10px;top:-10px;font-size:120px;opacity:0.06;line-height:1}
+.site-header h1{font-size:22px;font-weight:700;color:#fff;letter-spacing:0.02em;margin-bottom:4px}
+.site-header .sub{font-size:12px;color:rgba(255,255,255,0.5);letter-spacing:0.05em;text-transform:uppercase}
+.header-badge{display:inline-block;background:var(--accent);color:var(--navy);font-size:12px;font-weight:700;padding:3px 12px;border-radius:999px;margin-top:10px}
+
+/* ── TABS ── */
+.tab-bar{display:flex;background:var(--card-bg);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10}
+.tab{flex:1;padding:13px 8px;font-size:14px;font-weight:500;text-align:center;border:none;background:transparent;color:var(--text3);cursor:pointer;font-family:inherit;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s}
+.tab.active{color:var(--navy);border-bottom-color:var(--accent)}
+@media(prefers-color-scheme:dark){.tab.active{color:var(--accent-light)}}
+
+/* ── FORM ── */
+.form-wrap{padding:1rem;max-width:640px;margin:0 auto}
+.section-title{font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:var(--text3);margin:1.25rem 0 0.5rem}
+.field{margin-bottom:0.85rem}
+.field label{font-size:12px;color:var(--text2);display:block;margin-bottom:4px;font-weight:500}
+.field input,.field select,.field textarea{width:100%;background:var(--card-bg);color:var(--text);border:1px solid var(--border2);border-radius:var(--radius);padding:9px 12px;font-size:14px;font-family:inherit;transition:border-color 0.15s}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:80px;line-height:1.6}
+
+/* ── SCORE SECTION ── */
+.score-card{background:var(--navy);border-radius:var(--radius-lg);padding:1rem;margin-bottom:0.85rem}
+.score-card .sc-label{font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.45);text-transform:uppercase;margin-bottom:0.75rem}
+.team-grid{display:grid;grid-template-columns:1fr 52px 1fr;gap:8px;align-items:end}
+.team-col{display:flex;flex-direction:column;gap:4px}
+.tc-label{font-size:11px;color:rgba(255,255,255,0.45);font-weight:500}
+.team-input{background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:var(--radius);padding:8px 10px;font-size:13px;font-family:inherit;text-align:center;width:100%}
+.team-input:focus{outline:none;border-color:var(--accent)}
+.team-input::placeholder{color:rgba(255,255,255,0.3)}
+.score-input{background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:var(--radius);padding:8px 4px;font-size:26px;font-weight:700;font-family:inherit;text-align:center;width:100%}
+.score-input:focus{outline:none;border-color:var(--accent)}
+.score-input::placeholder{color:rgba(255,255,255,0.25);font-size:18px}
+.at-col{text-align:center;font-size:13px;color:rgba(255,255,255,0.4);padding-bottom:10px;font-weight:500}
+
+/* ── PHOTO ── */
+.photo-drop{border:1.5px dashed var(--border2);border-radius:var(--radius-lg);padding:1.25rem;text-align:center;cursor:pointer;position:relative;background:var(--card-bg);transition:border-color 0.15s;margin-bottom:0.75rem}
+.photo-drop:hover{border-color:var(--accent)}
+.photo-drop input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:28px;margin-bottom:6px;display:block}
+.drop-text{font-size:13px;color:var(--text3)}
+.photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:0.75rem}
+.photo-thumb{position:relative;border-radius:var(--radius);overflow:visible;background:#000;border:1px solid var(--border)}
+.photo-thumb img{width:100%;display:block;border-radius:var(--radius);object-fit:contain;max-height:200px}
+.photo-del{position:absolute;top:-7px;right:-7px;width:22px;height:22px;background:#c0392b;color:#fff;border:none;border-radius:50%;font-size:13px;line-height:22px;text-align:center;cursor:pointer;font-weight:700;z-index:2;padding:0}
+.photo-del:hover{background:#a93226}
+
+/* ── BUTTONS ── */
+.btn-save{width:100%;background:var(--accent);color:var(--navy);border:none;border-radius:var(--radius);padding:13px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;letter-spacing:0.02em;transition:opacity 0.15s;margin-top:0.5rem}
+.btn-save:hover{opacity:0.88}
+.btn-cancel{width:100%;background:transparent;color:var(--text2);border:1px solid var(--border2);border-radius:var(--radius);padding:11px;font-size:14px;cursor:pointer;font-family:inherit;margin-bottom:8px;transition:background 0.15s}
+.btn-cancel:hover{background:var(--border)}
+.edit-banner{background:linear-gradient(90deg,#1a5fa8,#1e7ac4);color:#fff;font-size:13px;font-weight:500;padding:9px 14px;border-radius:var(--radius);margin-bottom:0.75rem}
+
+/* ── STATS ── */
+.stats-hero{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
+.stat-hero-box{background:var(--navy);border-radius:var(--radius-lg);padding:14px 10px;text-align:center}
+.stat-hero-num{font-size:32px;font-weight:800;color:var(--accent-light);line-height:1}
+.stat-hero-label{font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px;line-height:1.3}
+.stats-section{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem}
+.stats-section h3{font-size:14px;font-weight:700;color:var(--text);margin-bottom:1rem;display:flex;align-items:center;gap:6px}
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.bar-label{font-size:13px;color:var(--text2);min-width:90px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-track{flex:1;background:var(--bg);border-radius:999px;height:8px;overflow:hidden}
+.bar-fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--navy-mid),var(--navy-light));transition:width 0.4s}
+.bar-count{font-size:12px;color:var(--text3);min-width:28px;text-align:right;flex-shrink:0}
+.stadium-list{list-style:none}
+.stadium-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.stadium-row:last-child{border-bottom:none}
+.stadium-name{color:var(--text2)}
+.stadium-badges{display:flex;gap:6px;align-items:center}
+.badge-count{background:var(--accent);color:var(--navy);font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px}
+.badge-pref{font-size:11px;color:var(--text3)}
+.year-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.year-label{font-size:13px;font-weight:600;color:var(--text2);min-width:44px}
+.year-bars{flex:1;display:flex;flex-direction:column;gap:4px}
+.year-bar-item{display:flex;align-items:center;gap:8px}
+.year-bar-sublabel{font-size:11px;color:var(--text3);min-width:32px}
+
+/* ── DATA TAB ── */
+.data-wrap{padding:1rem;max-width:640px;margin:0 auto}
+.data-section{background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius-lg);padding:1.25rem;margin-bottom:1rem}
+.data-section h3{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px}
+.data-section p{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:1rem}
+.btn-export{width:100%;background:var(--navy);color:#fff;border:none;border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity 0.15s}
+.btn-export:hover{opacity:0.85}
+.btn-import{width:100%;background:transparent;color:var(--navy);border:2px solid var(--navy);border-radius:var(--radius);padding:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;position:relative;transition:background 0.15s}
+.btn-import:hover{background:rgba(15,32,68,0.07)}
+.btn-import input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+@media(prefers-color-scheme:dark){
+  .btn-export{background:var(--accent);color:var(--navy)}
+  .btn-import{color:var(--accent-light);border-color:var(--accent-light)}
+  .btn-import:hover{background:rgba(232,160,32,0.1)}
+}
+.import-result{font-size:13px;margin-top:10px;padding:9px 12px;border-radius:var(--radius);display:none}
+.import-result.ok{background:#e8f5ee;color:#0f6e56}
+.import-result.err{background:#fdecea;color:#a93226}
+@media(prefers-color-scheme:dark){
+  .import-result.ok{background:#0d2a1a;color:#5dca95}
+  .import-result.err{background:#2a0d0d;color:#e07070}
+}
+.data-stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:1rem}
+.stat-box{background:var(--bg);border-radius:var(--radius);padding:12px;text-align:center}
+.stat-num{font-size:26px;font-weight:800;color:var(--navy)}
+@media(prefers-color-scheme:dark){.stat-num{color:var(--accent-light)}}
+.stat-label{font-size:11px;color:var(--text3);margin-top:2px}
+
+/* ── LIST ── */
+.list-wrap{padding:1rem;max-width:640px;margin:0 auto}
+.record-card{background:var(--card-bg);border-radius:var(--radius-lg);margin-bottom:1rem;overflow:hidden;border:1px solid var(--border)}
+.rc-top{background:linear-gradient(135deg,var(--navy),var(--navy-mid));padding:12px 14px 10px}
+.rc-stadium{font-size:16px;font-weight:700;color:#fff;margin-bottom:4px}
+.rc-meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.rc-date{font-size:12px;color:rgba(255,255,255,0.55)}
+.rc-pref{font-size:11px;background:rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);border-radius:999px;padding:2px 9px;font-weight:500}
+.rc-overseas{font-size:11px;background:var(--green);color:#fff;border-radius:999px;padding:2px 9px;font-weight:500}
+.rc-body{padding:12px 14px}
+.scoreboard{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;background:var(--navy);border-radius:var(--radius);padding:10px 14px;margin-bottom:10px}
+.sb-team{font-size:13px;color:rgba(255,255,255,0.7);line-height:1.3}
+.sb-team.home{text-align:right}
+.sb-scores{display:flex;align-items:center;gap:6px;justify-content:center}
+.sb-num{font-size:26px;font-weight:800;color:#fff;line-height:1}
+.sb-num.winner{color:var(--accent-light)}
+.sb-dash{font-size:14px;color:rgba(255,255,255,0.3)}
+.matchup-only{font-size:13px;color:var(--text2);margin-bottom:10px}
+.photo-gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-bottom:10px}
+.gallery-img{width:100%;display:block;border-radius:8px;object-fit:contain;background:#000;border:1px solid var(--border)}
+.rc-memo{font-size:13px;color:var(--text2);line-height:1.7;background:var(--bg);border-radius:var(--radius);padding:9px 11px;margin-bottom:10px;white-space:pre-line}
+.rc-actions{display:flex;gap:8px;padding-top:4px}
+.rc-btn{flex:1;font-size:12px;padding:7px 0;background:transparent;border:1px solid var(--border2);border-radius:var(--radius);cursor:pointer;color:var(--text2);font-family:inherit;font-weight:500;transition:background 0.15s}
+.rc-btn:hover{background:var(--border)}
+.rc-btn.danger{color:#c0392b;border-color:rgba(192,57,43,0.35)}
+.rc-btn.danger:hover{background:rgba(192,57,43,0.08)}
+.empty{text-align:center;padding:4rem 1rem;color:var(--text3)}
+.empty-icon{font-size:48px;display:block;margin-bottom:12px;opacity:0.4}
+.note{font-size:12px;color:var(--text3);background:var(--bg);border-radius:var(--radius);padding:8px 11px;margin-bottom:0.75rem;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div class="install-banner" id="install-banner">
+  <span>📱 ホーム画面に追加してアプリとして使えます</span>
+  <div style="display:flex;gap:6px;flex-shrink:0">
+    <button onclick="installApp()">追加する</button>
+    <button class="close-btn" onclick="dismissInstall()">✕</button>
+  </div>
+</div>
+
+<div id="ios-hint" style="display:none;background:#fff3cd;color:#856404;font-size:12px;padding:10px 16px;text-align:center;line-height:1.5">
+  📱 iPhoneの場合：Safari下部の 共有ボタン →「ホーム画面に追加」
+</div>
+
+<div class="site-header">
+  <div style="max-width:640px;margin:0 auto">
+    <div class="sub">Stadium Pilgrimage Log</div>
+    <h1>⚾ 球場巡礼ログ</h1>
+    <div class="header-badge" id="count-badge">0試合</div>
+  </div>
+</div>
+
+<div class="tab-bar">
+  <button class="tab active" onclick="showTab('add')" id="tab-btn-add">記録を追加</button>
+  <button class="tab" onclick="showTab('list')" id="tab-btn-list">巡礼リスト</button>
+  <button class="tab" onclick="showTab('stats')" id="tab-btn-stats">集計</button>
+  <button class="tab" onclick="showTab('data')" id="tab-btn-data">データ管理</button>
+</div>
+
+<!-- ADD / EDIT FORM -->
+<div id="tab-add">
+  <div class="form-wrap">
+    <div id="edit-banner" class="edit-banner" style="display:none">✏️ 編集モード — 変更を保存してください</div>
+
+    <div class="section-title">基本情報</div>
+    <div class="field"><label>訪問日</label><input type="date" id="f-date"></div>
+    <div class="field"><label>球場名</label><input type="text" id="f-stadium" placeholder="例：明治神宮野球場"></div>
+    <div class="field"><label>所在地</label>
+      <select id="f-pref">
+        <option value="">選択してください</option>
+        <option value="海外">🌏 海外</option>
+        <option>北海道</option><option>青森県</option><option>岩手県</option><option>宮城県</option>
+        <option>秋田県</option><option>山形県</option><option>福島県</option><option>茨城県</option>
+        <option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option>
+        <option>東京都</option><option>神奈川県</option><option>新潟県</option><option>富山県</option>
+        <option>石川県</option><option>福井県</option><option>山梨県</option><option>長野県</option>
+        <option>岐阜県</option><option>静岡県</option><option>愛知県</option><option>三重県</option>
+        <option>滋賀県</option><option>京都府</option><option>大阪府</option><option>兵庫県</option>
+        <option>奈良県</option><option>和歌山県</option><option>鳥取県</option><option>島根県</option>
+        <option>岡山県</option><option>広島県</option><option>山口県</option><option>徳島県</option>
+        <option>香川県</option><option>愛媛県</option><option>高知県</option><option>福岡県</option>
+        <option>佐賀県</option><option>長崎県</option><option>熊本県</option><option>大分県</option>
+        <option>宮崎県</option><option>鹿児島県</option><option>沖縄県</option>
+      </select>
+    </div>
+
+    <div class="section-title">カード &amp; スコア</div>
+    <div class="score-card">
+      <div class="sc-label">Matchup &amp; Score</div>
+      <div class="team-grid">
+        <div class="team-col">
+          <div class="tc-label">VISITOR</div>
+          <input type="text" class="team-input" id="f-visitor" placeholder="ビジター">
+          <input type="number" class="score-input" id="f-vscore" min="0" max="99" placeholder="—">
+        </div>
+        <div class="at-col">@</div>
+        <div class="team-col">
+          <div class="tc-label">HOME</div>
+          <input type="text" class="team-input" id="f-home" placeholder="ホーム">
+          <input type="number" class="score-input" id="f-hscore" min="0" max="99" placeholder="—">
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">メモ</div>
+    <div class="field"><textarea id="f-memo" placeholder="試合の感想、席の様子、グルメ情報など..."></textarea></div>
+
+    <div class="section-title">写真</div>
+    <div class="note">📷 Google Photosからは端末に保存してからアップロードできます。複数枚選択可。</div>
+    <div id="photo-thumbs" class="photo-grid"></div>
+    <div class="photo-drop">
+      <input type="file" accept="image/*" multiple id="f-photo" onchange="addPhotos(this)">
+      <span class="drop-icon">＋</span>
+      <div class="drop-text">写真を追加（複数可）</div>
+    </div>
+
+    <button class="btn-cancel" id="btn-cancel" style="display:none" onclick="cancelEdit()">キャンセル</button>
+    <button class="btn-save" id="btn-save" onclick="saveRecord()">記録を保存</button>
+  </div>
+</div>
+
+<!-- STATS TAB -->
+<div id="tab-stats" style="display:none">
+  <div class="data-wrap" id="stats-container"></div>
+</div>
+
+<!-- DATA MANAGEMENT -->
+<div id="tab-data" style="display:none">
+  <div class="data-wrap">
+    <div class="data-section">
+      <div class="data-stats">
+        <div class="stat-box"><div class="stat-num" id="stat-count">0</div><div class="stat-label">記録試合数</div></div>
+        <div class="stat-box"><div class="stat-num" id="stat-photos">0</div><div class="stat-label">保存写真枚数</div></div>
+      </div>
+    </div>
+
+    <div class="data-section">
+      <h3>📤 データをエクスポート</h3>
+      <p>全記録をJSONファイルとしてダウンロードします。写真データも含まれます。定期的にバックアップを取ることをおすすめします。</p>
+      <button class="btn-export" onclick="exportData()">JSONファイルをダウンロード</button>
+    </div>
+
+    <div class="data-section">
+      <h3>📥 データをインポート</h3>
+      <p>エクスポートしたJSONファイルを読み込みます。<strong>追加モード</strong>（既存データを残して追加）と<strong>上書きモード</strong>（全データを置き換え）を選べます。</p>
+      <div style="display:flex;gap:8px;margin-bottom:0.75rem">
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
+          <input type="radio" name="import-mode" value="merge" checked> 追加モード
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--text2);cursor:pointer">
+          <input type="radio" name="import-mode" value="replace"> 上書きモード
+        </label>
+      </div>
+      <div class="btn-import">
+        JSONファイルを選択してインポート
+        <input type="file" accept=".json,application/json" onchange="importData(this)">
+      </div>
+      <div class="import-result" id="import-result"></div>
+    </div>
+  </div>
+</div>
+
+<!-- LIST -->
+<div id="tab-list" style="display:none">
+  <div class="list-wrap" id="records-container"></div>
+</div>
+
+<script>
+const SEED = [
+  {id:1744300000016,date:'2026-04-11',stadium:'ロッテ浦和球場',pref:'埼玉県',visitor:'日ハム',home:'ロッテ',vscore:'',hscore:'',memo:'ライル・リン出場',photos:[]},
+  {id:1744300000015,date:'2026-03-09',stadium:'東京ドーム',pref:'東京都',visitor:'韓国',home:'オーストラリア',vscore:'',hscore:'',memo:'WBC プールC',photos:[]},
+  {id:1744300000014,date:'2026-03-07',stadium:'東京ドーム',pref:'東京都',visitor:'台湾',home:'チェコ',vscore:'',hscore:'',memo:'WBC プールC',photos:[]},
+  {id:1744300000013,date:'2026-03-05',stadium:'東京ドーム',pref:'東京都',visitor:'チェコ',home:'韓国',vscore:'',hscore:'',memo:'WBC プールC',photos:[]},
+  {id:1744300000012,date:'2025-01-10',stadium:'Melbourne Ballpark',pref:'海外',visitor:'Sydney Blue Sox',home:'Melbourne Aces',vscore:'',hscore:'',memo:'オーストラリア・メルボルン\nMelbourne Acesが翌シーズンのABL脱退を発表（4/30）',photos:[]},
+  {id:1744300000011,date:'2024-06-26',stadium:'ヤクルト戸田球場',pref:'埼玉県',visitor:'新潟アルビレックスBC',home:'東京ヤクルトスワローズ',vscore:'',hscore:'',memo:'新潟に陽岱鋼選手が在籍、出場',photos:[]},
+  {id:1744300000010,date:'2024-03-06',stadium:'京セラドーム大阪',pref:'大阪府',visitor:'欧州代表',home:'日本',vscore:'',hscore:'',memo:'侍ジャパンシリーズ2024',photos:[]},
+  {id:1744300000009,date:'2023-11-17',stadium:'東京ドーム',pref:'東京都',visitor:'韓国',home:'日本',vscore:'',hscore:'',memo:'アジア プロ野球チャンピオンシップ ②韓国 @ 日本',photos:[]},
+  {id:1744300000008,date:'2023-11-17',stadium:'東京ドーム',pref:'東京都',visitor:'台湾',home:'オーストラリア',vscore:'6',hscore:'0',memo:'アジア プロ野球チャンピオンシップ ①台湾 @ オーストラリア',photos:[]},
+  {id:1744300000007,date:'2023-04-04',stadium:'澄清湖棒球場',pref:'海外',visitor:'中信',home:'統一',vscore:'',hscore:'',memo:'台湾・高雄',photos:[]},
+  {id:1744300000006,date:'2022-05-31',stadium:'MAZDA Zoom-Zoom スタジアム',pref:'広島県',visitor:'日本ハムファイターズ',home:'広島東洋カープ',vscore:'',hscore:'',memo:'',photos:[]},
+  {id:1744300000005,date:'2022-05-11',stadium:'福岡PayPayドーム',pref:'福岡県',visitor:'西武ライオンズ',home:'福岡ソフトバンクホークス',vscore:'',hscore:'',memo:'東浜巨選手ノーヒットノーラン達成',photos:[]},
+  {id:1744300000004,date:'2021-06-24',stadium:'京セラドーム大阪',pref:'大阪府',visitor:'日本ハムファイターズ',home:'オリックス・バファローズ',vscore:'',hscore:'',memo:'日本ハムの王柏融選手ヒーローインタビュー',photos:[]},
+  {id:1744300000003,date:'2021-05-23',stadium:'金沢市民野球場',pref:'石川県',visitor:'富山GRNサンダーバーズ',home:'石川ミリオンスターズ',vscore:'',hscore:'',memo:'',photos:[]},
+  {id:1744300000002,date:'2021-05-08',stadium:'大原運動公園',pref:'新潟県',visitor:'栃木ゴールデンブレーブス',home:'新潟アルビレックスBC',vscore:'',hscore:'',memo:'栃木に川崎宗則選手が在籍、未出場',photos:[]},
+  {id:1744300000001,date:'2020-07-12',stadium:'浜公園 川之江野球場',pref:'愛媛県',visitor:'高知ファイティングドッグス',home:'愛媛マンタリンパイレーツ',vscore:'',hscore:'',memo:'四国独立リーグ シーズン初有観客試合\n翌日、高知の選手のコロナ感染が判明',photos:[]},
+];
+
+const STORAGE_KEY = 'baseball_records_v5';
+let records = [];
+let formPhotos = []; // array of base64 strings
+let editingId = null;
+
+function migrate(r) {
+  // migrate old single photo field to photos array
+  if (!r.photos) {
+    r.photos = r.photo ? [r.photo] : [];
+    delete r.photo;
+  }
+  return r;
+}
+
+function loadRecords() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      records = JSON.parse(saved).map(migrate);
+    } else {
+      // try migrating from v4
+      const old = localStorage.getItem('baseball_records_v4');
+      records = old ? JSON.parse(old).map(migrate) : SEED;
+      saveAllRecords();
+    }
+  } catch(e) { records = SEED; saveAllRecords(); }
+  updateBadge();
+}
+
+function saveAllRecords() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+  updateBadge();
+}
+
+function updateBadge() {
+  document.getElementById('count-badge').textContent = records.length + '試合';
+}
+
+function showTab(t) {
+  document.getElementById('tab-add').style.display = t==='add' ? 'block' : 'none';
+  document.getElementById('tab-list').style.display = t==='list' ? 'block' : 'none';
+  document.getElementById('tab-data').style.display = t==='data' ? 'block' : 'none';
+  document.getElementById('tab-btn-add').classList.toggle('active', t==='add');
+  document.getElementById('tab-btn-list').classList.toggle('active', t==='list');
+  document.getElementById('tab-btn-data').classList.toggle('active', t==='data');
+  if (t==='list') renderList();
+  if (t==='data') renderStats();
+}
+
+function showTab(t) {
+  ['add','list','stats','data'].forEach(n => {
+    document.getElementById('tab-' + n).style.display = t === n ? 'block' : 'none';
+    document.getElementById('tab-btn-' + n).classList.toggle('active', t === n);
+  });
+  if (t === 'list') renderList();
+  if (t === 'stats') renderStats();
+  if (t === 'data') renderDataStats();
+}
+
+function renderDataStats() {
+  document.getElementById('stat-count').textContent = records.length;
+  const totalPhotos = records.reduce((n, r) => n + (r.photos ? r.photos.length : 0), 0);
+  document.getElementById('stat-photos').textContent = totalPhotos;
+}
+
+function renderStats() {
+  const container = document.getElementById('stats-container');
+  if (!records.length) {
+    container.innerHTML = '<div class="empty"><span class="empty-icon">📊</span>まだ記録がありません</div>';
+    return;
+  }
+
+  // unique stadiums
+  const stadiumMap = {};
+  records.forEach(r => {
+    const key = r.stadium.trim();
+    if (!stadiumMap[key]) stadiumMap[key] = { name: key, pref: r.pref, count: 0 };
+    stadiumMap[key].count++;
+  });
+  const stadiums = Object.values(stadiumMap).sort((a, b) => b.count - a.count);
+  const uniqueStadiums = stadiums.length;
+  const totalGames = records.length;
+  const uniquePrefs = new Set(records.map(r => r.pref).filter(Boolean)).size;
+
+  // pref breakdown
+  const prefMap = {};
+  records.forEach(r => {
+    if (!r.pref) return;
+    prefMap[r.pref] = (prefMap[r.pref] || 0) + 1;
+  });
+  const prefList = Object.entries(prefMap).sort((a, b) => b[1] - a[1]);
+  const maxPref = prefList[0]?.[1] || 1;
+
+  // year breakdown (games + unique stadiums per year)
+  const yearGames = {}, yearStadiums = {};
+  records.forEach(r => {
+    if (!r.date) return;
+    const y = r.date.slice(0, 4);
+    yearGames[y] = (yearGames[y] || 0) + 1;
+    if (!yearStadiums[y]) yearStadiums[y] = new Set();
+    yearStadiums[y].add(r.stadium.trim());
+  });
+  const years = Object.keys(yearGames).sort();
+  const maxYear = Math.max(...Object.values(yearGames));
+
+  container.innerHTML = `
+    <div class="stats-hero">
+      <div class="stat-hero-box">
+        <div class="stat-hero-num">${uniqueStadiums}</div>
+        <div class="stat-hero-label">行った球場数</div>
+      </div>
+      <div class="stat-hero-box">
+        <div class="stat-hero-num">${totalGames}</div>
+        <div class="stat-hero-label">観戦試合数</div>
+      </div>
+      <div class="stat-hero-box">
+        <div class="stat-hero-num">${uniquePrefs}</div>
+        <div class="stat-hero-label">都道府県・海外</div>
+      </div>
+    </div>
+
+    <div class="stats-section">
+      <h3>🏟️ 球場リスト（${uniqueStadiums}球場）</h3>
+      <ul class="stadium-list">
+        ${stadiums.map(s => `
+          <li class="stadium-row">
+            <span class="stadium-name">${esc(s.name)}</span>
+            <div class="stadium-badges">
+              ${s.pref ? `<span class="badge-pref">${esc(s.pref)}</span>` : ''}
+              ${s.count > 1 ? `<span class="badge-count">${s.count}回</span>` : ''}
+            </div>
+          </li>`).join('')}
+      </ul>
+    </div>
+
+    <div class="stats-section">
+      <h3>📍 所在地別（試合数）</h3>
+      ${prefList.map(([pref, cnt]) => `
+        <div class="bar-row">
+          <div class="bar-label">${esc(pref)}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round(cnt/maxPref*100)}%"></div></div>
+          <div class="bar-count">${cnt}</div>
+        </div>`).join('')}
+    </div>
+
+    <div class="stats-section">
+      <h3>📅 年別観戦数</h3>
+      ${years.map(y => `
+        <div class="bar-row">
+          <div class="bar-label">${y}</div>
+          <div class="bar-track"><div class="bar-fill" style="width:${Math.round(yearGames[y]/maxYear*100)}%"></div></div>
+          <div class="bar-count">${yearGames[y]}試合 / ${yearStadiums[y].size}球場</div>
+        </div>`).join('')}
+    </div>
+  `;
+}
+
+function exportData() {
+  const payload = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    count: records.length,
+    records: records
+  };
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const date = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `baseball_log_backup_${date}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const mode = document.querySelector('input[name="import-mode"]:checked').value;
+  const resultEl = document.getElementById('import-result');
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = JSON.parse(e.target.result);
+      let incoming = [];
+      if (Array.isArray(parsed)) {
+        incoming = parsed;
+      } else if (parsed.records && Array.isArray(parsed.records)) {
+        incoming = parsed.records;
+      } else {
+        throw new Error('フォーマットが正しくありません');
+      }
+      incoming = incoming.map(migrate);
+      if (mode === 'replace') {
+        if (!confirm(`既存の${records.length}件の記録をすべて削除し、${incoming.length}件のデータに置き換えます。よろしいですか？`)) {
+          input.value = ''; return;
+        }
+        records = incoming;
+      } else {
+        const existingIds = new Set(records.map(r => r.id));
+        const newOnes = incoming.filter(r => !existingIds.has(r.id));
+        records = [...newOnes, ...records];
+        records.sort((a, b) => new Date(b.date) - new Date(a.date));
+        incoming = newOnes;
+      }
+      saveAllRecords();
+      renderStats();
+      resultEl.className = 'import-result ok';
+      resultEl.textContent = mode === 'replace'
+        ? `✓ ${records.length}件のデータをインポートしました`
+        : `✓ ${incoming.length}件を追加しました（重複スキップ含む）`;
+      resultEl.style.display = 'block';
+    } catch(err) {
+      resultEl.className = 'import-result err';
+      resultEl.textContent = '❌ 読み込みに失敗しました: ' + err.message;
+      resultEl.style.display = 'block';
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+function addPhotos(input) {
+  const files = Array.from(input.files);
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      formPhotos.push(e.target.result);
+      renderFormThumbs();
+    };
+    reader.readAsDataURL(file);
+  });
+  input.value = '';
+}
+
+function removeFormPhoto(idx) {
+  formPhotos.splice(idx, 1);
+  renderFormThumbs();
+}
+
+function renderFormThumbs() {
+  const grid = document.getElementById('photo-thumbs');
+  if (!formPhotos.length) { grid.innerHTML = ''; return; }
+  grid.innerHTML = formPhotos.map((src, i) =>
+    `<div class="photo-thumb">
+      <img src="${src}" alt="写真${i+1}">
+      <button class="photo-del" onclick="removeFormPhoto(${i})" title="削除">×</button>
+    </div>`
+  ).join('');
+}
+
+function fillForm(r) {
+  document.getElementById('f-date').value = r.date || '';
+  document.getElementById('f-stadium').value = r.stadium || '';
+  document.getElementById('f-pref').value = r.pref || '';
+  document.getElementById('f-visitor').value = r.visitor || '';
+  document.getElementById('f-home').value = r.home || '';
+  document.getElementById('f-vscore').value = r.vscore !== undefined ? r.vscore : '';
+  document.getElementById('f-hscore').value = r.hscore !== undefined ? r.hscore : '';
+  document.getElementById('f-memo').value = r.memo || '';
+  formPhotos = r.photos ? [...r.photos] : [];
+  renderFormThumbs();
+}
+
+function clearForm() {
+  ['f-date','f-stadium','f-pref','f-visitor','f-home','f-vscore','f-hscore','f-memo','f-photo'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  formPhotos = [];
+  renderFormThumbs();
+  editingId = null;
+  document.getElementById('edit-banner').style.display = 'none';
+  document.getElementById('btn-cancel').style.display = 'none';
+  document.getElementById('btn-save').textContent = '記録を保存';
+}
+
+function startEdit(id) {
+  const r = records.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  fillForm(r);
+  document.getElementById('edit-banner').style.display = 'block';
+  document.getElementById('btn-cancel').style.display = 'block';
+  document.getElementById('btn-save').textContent = '変更を保存';
+  showTab('add');
+  window.scrollTo(0, 0);
+}
+
+function cancelEdit() { clearForm(); showTab('list'); }
+
+function saveRecord() {
+  const date = document.getElementById('f-date').value;
+  const stadium = document.getElementById('f-stadium').value.trim();
+  if (!date || !stadium) { alert('訪問日と球場名は必須です'); return; }
+  const data = {
+    date, stadium,
+    pref: document.getElementById('f-pref').value,
+    visitor: document.getElementById('f-visitor').value.trim(),
+    home: document.getElementById('f-home').value.trim(),
+    vscore: document.getElementById('f-vscore').value,
+    hscore: document.getElementById('f-hscore').value,
+    memo: document.getElementById('f-memo').value.trim(),
+    photos: [...formPhotos]
+  };
+  if (editingId !== null) {
+    const idx = records.findIndex(r => r.id === editingId);
+    if (idx >= 0) records[idx] = { ...records[idx], ...data };
+  } else {
+    records.unshift({ id: Date.now(), ...data });
+  }
+  saveAllRecords();
+  clearForm();
+  showTab('list');
+}
+
+function deleteRecord(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  records = records.filter(r => r.id !== id);
+  saveAllRecords();
+  renderList();
+}
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderList() {
+  const container = document.getElementById('records-container');
+  if (!records.length) {
+    container.innerHTML = `<div class="empty"><span class="empty-icon">⚾</span>まだ記録がありません<br>「記録を追加」から球場を登録しましょう</div>`;
+    return;
+  }
+  container.innerHTML = records.map(r => {
+    const dateStr = r.date ? r.date.replace(/-/g, '/') : '—';
+    const isOverseas = r.pref === '海外';
+    const hasScore = r.vscore !== '' && r.hscore !== '' && r.vscore !== undefined && r.hscore !== undefined && (r.visitor || r.home);
+    let matchupHtml = '';
+    if (hasScore) {
+      const vs = parseInt(r.vscore), hs = parseInt(r.hscore);
+      const vw = vs > hs, hw = hs > vs;
+      matchupHtml = `<div class="scoreboard">
+        <div class="sb-team">${esc(r.visitor || 'VISITOR')}</div>
+        <div class="sb-scores">
+          <span class="sb-num${vw?' winner':''}">${vs}</span>
+          <span class="sb-dash">—</span>
+          <span class="sb-num${hw?' winner':''}">${hs}</span>
+        </div>
+        <div class="sb-team home">${esc(r.home || 'HOME')}</div>
+      </div>`;
+    } else if (r.visitor || r.home) {
+      matchupHtml = `<div class="matchup-only">${esc(r.visitor||'?')} @ ${esc(r.home||'?')}</div>`;
+    }
+    const photos = r.photos || [];
+    const photoHtml = photos.length
+      ? `<div class="photo-gallery">${photos.map(src=>`<img class="gallery-img" src="${src}" alt="写真">`).join('')}</div>`
+      : '';
+    const memoHtml = r.memo ? `<div class="rc-memo">${esc(r.memo)}</div>` : '';
+    const prefBadge = r.pref
+      ? (isOverseas ? `<span class="rc-overseas">🌏 海外</span>` : `<span class="rc-pref">${esc(r.pref)}</span>`)
+      : '';
+    return `<div class="record-card">
+      <div class="rc-top">
+        <div class="rc-stadium">${esc(r.stadium)}</div>
+        <div class="rc-meta">
+          <span class="rc-date">${dateStr}</span>
+          ${prefBadge}
+        </div>
+      </div>
+      <div class="rc-body">
+        ${matchupHtml}
+        ${photoHtml}
+        ${memoHtml}
+        <div class="rc-actions">
+          <button class="rc-btn" onclick="startEdit(${r.id})">編集</button>
+          <button class="rc-btn danger" onclick="deleteRecord(${r.id})">削除</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+loadRecords();
+showTab('list');
+
+// ── PWA Install prompt ──
+let deferredPrompt = null;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+
+if (!isStandalone) {
+  if (isIOS) {
+    if (!localStorage.getItem('ios-hint-dismissed')) {
+      document.getElementById('ios-hint').style.display = 'block';
+    }
+  } else {
+    window.addEventListener('beforeinstallprompt', e => {
+      e.preventDefault();
+      deferredPrompt = e;
+      document.getElementById('install-banner').classList.add('show');
+    });
+  }
+}
+
+function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => {
+    deferredPrompt = null;
+    document.getElementById('install-banner').classList.remove('show');
+  });
+}
+
+function dismissInstall() {
+  document.getElementById('install-banner').classList.remove('show');
+  document.getElementById('ios-hint').style.display = 'none';
+  localStorage.setItem('ios-hint-dismissed', '1');
+}
+
+// ── Service Worker registration ──
+if ('serviceWorker' in navigator) {
+  const swCode = `
+const CACHE = 'baseball-log-v1';
+self.addEventListener('install', e => {
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])).catch(()=>{}));
+  self.skipWaiting();
+});
+self.addEventListener('activate', e => {
+  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
+  self.clients.claim();
+});
+self.addEventListener('fetch', e => {
+  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./'))));
+});
+`;
+  const blob = new Blob([swCode], { type: 'application/javascript' });
+  const swUrl = URL.createObjectURL(blob);
+  navigator.serviceWorker.register(swUrl).catch(() => {});
+}
+</script>
+</body>
+</html>

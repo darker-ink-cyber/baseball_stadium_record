@@ -1,0 +1,15 @@
+{
+  "name": "球場巡礼ログ",
+  "short_name": "球場巡礼",
+  "description": "野球場訪問記録アプリ",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#0f2044",
+  "background_color": "#0f2044",
+  "lang": "ja",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
