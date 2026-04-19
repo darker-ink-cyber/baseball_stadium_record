@@ -9,13 +9,7 @@ icon-512.png    ← アプリアイコン（大）
 ```
 
 ## インストール手順
-
-### GitHub Pages を使う場合（無料・推奨）
-1. [github.com](https://github.com) でアカウント作成（無料）
-2. 新しいリポジトリを作成（Public）
-3. 上記4ファイルをアップロード（`baseball_pwa.html` → `index.html` にリネーム）
-4. Settings → Pages → Branch: main / folder: / (root) → Save
-5. `https://ユーザー名.github.io/リポジトリ名/` にアクセス
+-`https://ユーザー名.github.io/リポジトリ名/` にアクセス
 
 ### Androidの場合
 - Chrome でアクセスすると「ホーム画面に追加」バナーが自動表示されます
