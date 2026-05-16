@@ -2,15 +2,8 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>球場巡礼ログ</title>
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0f2044">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="球場巡礼">
-<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚾ 球場巡礼ログ</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -43,17 +36,7 @@
     --green-light:#0d2a1a;
   }
 }
-body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI',sans-serif;background:var(--bg);min-height:100vh;color:var(--text);padding-bottom:env(safe-area-inset-bottom)}
-
-/* ── iOS safe area ── */
-.site-header{padding-top:calc(1.5rem + env(safe-area-inset-top))}
-.tab-bar{padding-left:env(safe-area-inset-left);padding-right:env(safe-area-inset-right)}
-
-/* ── INSTALL BANNER ── */
-.install-banner{display:none;align-items:center;justify-content:space-between;gap:12px;background:var(--accent);color:var(--navy);padding:10px 16px;font-size:13px;font-weight:600}
-.install-banner.show{display:flex}
-.install-banner button{background:var(--navy);color:#fff;border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;font-family:inherit}
-.install-banner .close-btn{background:transparent;color:var(--navy);padding:4px 8px;opacity:0.6;font-size:16px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI',sans-serif;background:var(--bg);min-height:100vh;color:var(--text)}
 
 /* ── HEADER ── */
 .site-header{background:linear-gradient(135deg,var(--navy) 0%,var(--navy-mid) 60%,var(--navy-light) 100%);padding:1.5rem 1.25rem 1.25rem;position:relative;overflow:hidden}
@@ -195,18 +178,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI'
 </style>
 </head>
 <body>
-
-<div class="install-banner" id="install-banner">
-  <span>📱 ホーム画面に追加してアプリとして使えます</span>
-  <div style="display:flex;gap:6px;flex-shrink:0">
-    <button onclick="installApp()">追加する</button>
-    <button class="close-btn" onclick="dismissInstall()">✕</button>
-  </div>
-</div>
-
-<div id="ios-hint" style="display:none;background:#fff3cd;color:#856404;font-size:12px;padding:10px 16px;text-align:center;line-height:1.5">
-  📱 iPhoneの場合：Safari下部の 共有ボタン →「ホーム画面に追加」
-</div>
 
 <div class="site-header">
   <div style="max-width:640px;margin:0 auto">
@@ -351,13 +322,54 @@ const SEED = [
   {id:1744300000001,date:'2020-07-12',stadium:'浜公園 川之江野球場',pref:'愛媛県',visitor:'高知ファイティングドッグス',home:'愛媛マンタリンパイレーツ',vscore:'',hscore:'',memo:'四国独立リーグ シーズン初有観客試合\n翌日、高知の選手のコロナ感染が判明',photos:[]},
 ];
 
-const STORAGE_KEY = 'baseball_records_v5';
 let records = [];
-let formPhotos = []; // array of base64 strings
+let formPhotos = [];
 let editingId = null;
 
+// ── IndexedDB ──────────────────────────────────────────
+const DB_NAME = 'BaseballLog';
+const DB_VER  = 1;
+const STORE   = 'records';
+let db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (db) { resolve(db); return; }
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains(STORE)) {
+        d.createObjectStore(STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function idbGetAll() {
+  const d = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx  = d.transaction(STORE, 'readonly');
+    const req = tx.objectStore(STORE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+
+async function idbPutAll(recs) {
+  const d = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = d.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    store.clear();
+    recs.forEach(r => store.put(r));
+    tx.oncomplete = resolve;
+    tx.onerror    = () => reject(tx.error);
+  });
+}
+
 function migrate(r) {
-  // migrate old single photo field to photos array
   if (!r.photos) {
     r.photos = r.photo ? [r.photo] : [];
     delete r.photo;
@@ -365,23 +377,35 @@ function migrate(r) {
   return r;
 }
 
-function loadRecords() {
+async function loadRecords() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      records = JSON.parse(saved).map(migrate);
-    } else {
-      // try migrating from v4
-      const old = localStorage.getItem('baseball_records_v4');
-      records = old ? JSON.parse(old).map(migrate) : SEED;
-      saveAllRecords();
+    let recs = await idbGetAll();
+    if (recs.length === 0) {
+      // try migrating from old localStorage
+      const oldJson = localStorage.getItem('baseball_records_v5')
+                   || localStorage.getItem('baseball_records_v4');
+      if (oldJson) {
+        recs = JSON.parse(oldJson).map(migrate);
+      } else {
+        recs = SEED;
+      }
+      await idbPutAll(recs);
     }
-  } catch(e) { records = SEED; saveAllRecords(); }
+    records = recs.map(migrate).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  } catch(e) {
+    console.error('loadRecords error', e);
+    records = SEED;
+  }
   updateBadge();
 }
 
-function saveAllRecords() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+async function saveAllRecords() {
+  try {
+    await idbPutAll(records);
+  } catch(e) {
+    console.error('saveAllRecords error', e);
+    alert('保存に失敗しました: ' + e.message);
+  }
   updateBadge();
 }
 
@@ -532,7 +556,7 @@ function importData(input) {
   const mode = document.querySelector('input[name="import-mode"]:checked').value;
   const resultEl = document.getElementById('import-result');
   const reader = new FileReader();
-  reader.onload = e => {
+  reader.onload = async e => {
     try {
       const parsed = JSON.parse(e.target.result);
       let incoming = [];
@@ -553,11 +577,11 @@ function importData(input) {
         const existingIds = new Set(records.map(r => r.id));
         const newOnes = incoming.filter(r => !existingIds.has(r.id));
         records = [...newOnes, ...records];
-        records.sort((a, b) => new Date(b.date) - new Date(a.date));
+        records.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
         incoming = newOnes;
       }
-      saveAllRecords();
-      renderStats();
+      await saveAllRecords();
+      renderDataStats();
       resultEl.className = 'import-result ok';
       resultEl.textContent = mode === 'replace'
         ? `✓ ${records.length}件のデータをインポートしました`
@@ -641,7 +665,7 @@ function startEdit(id) {
 
 function cancelEdit() { clearForm(); showTab('list'); }
 
-function saveRecord() {
+async function saveRecord() {
   const date = document.getElementById('f-date').value;
   const stadium = document.getElementById('f-stadium').value.trim();
   if (!date || !stadium) { alert('訪問日と球場名は必須です'); return; }
@@ -661,15 +685,15 @@ function saveRecord() {
   } else {
     records.unshift({ id: Date.now(), ...data });
   }
-  saveAllRecords();
+  await saveAllRecords();
   clearForm();
   showTab('list');
 }
 
-function deleteRecord(id) {
+async function deleteRecord(id) {
   if (!confirm('この記録を削除しますか？')) return;
   records = records.filter(r => r.id !== id);
-  saveAllRecords();
+  await saveAllRecords();
   renderList();
 }
 
@@ -733,63 +757,7 @@ function renderList() {
   }).join('');
 }
 
-loadRecords();
-showTab('list');
-
-// ── PWA Install prompt ──
-let deferredPrompt = null;
-const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-const isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
-
-if (!isStandalone) {
-  if (isIOS) {
-    if (!localStorage.getItem('ios-hint-dismissed')) {
-      document.getElementById('ios-hint').style.display = 'block';
-    }
-  } else {
-    window.addEventListener('beforeinstallprompt', e => {
-      e.preventDefault();
-      deferredPrompt = e;
-      document.getElementById('install-banner').classList.add('show');
-    });
-  }
-}
-
-function installApp() {
-  if (!deferredPrompt) return;
-  deferredPrompt.prompt();
-  deferredPrompt.userChoice.then(() => {
-    deferredPrompt = null;
-    document.getElementById('install-banner').classList.remove('show');
-  });
-}
-
-function dismissInstall() {
-  document.getElementById('install-banner').classList.remove('show');
-  document.getElementById('ios-hint').style.display = 'none';
-  localStorage.setItem('ios-hint-dismissed', '1');
-}
-
-// ── Service Worker registration ──
-if ('serviceWorker' in navigator) {
-  const swCode = `
-const CACHE = 'baseball-log-v1';
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./', './index.html'])).catch(()=>{}));
-  self.skipWaiting();
-});
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));
-  self.clients.claim();
-});
-self.addEventListener('fetch', e => {
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('./'))));
-});
-`;
-  const blob = new Blob([swCode], { type: 'application/javascript' });
-  const swUrl = URL.createObjectURL(blob);
-  navigator.serviceWorker.register(swUrl).catch(() => {});
-}
+loadRecords().then(() => showTab('list'));
 </script>
 </body>
 </html>
